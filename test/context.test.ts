@@ -669,3 +669,158 @@ describe("Context", () => {
         });
     });
 });
+
+describe("Context message_thread_id behavior", () => {
+    const user = { id: 42, first_name: "bot", is_bot: true } as User;
+    const forumChat = { id: 100, type: "supergroup", is_forum: true } as Chat;
+    
+    // Create a mock API that captures options
+    function createMockApi() {
+        let capturedOptions: any = null;
+        let capturedThreadId: number | null = null;
+        
+        return {
+            api: {
+                sendMessage: (chatId: number | string, text: string, options?: any) => {
+                    capturedOptions = options;
+                    return Promise.resolve({} as any);
+                },
+                editForumTopic: (chatId: number | string, threadId: number, options?: any) => {
+                    capturedThreadId = threadId;
+                    return Promise.resolve({} as any);
+                },
+                forwardMessage: (chatId: number | string, fromChatId: number | string, messageId: number, options?: any) => {
+                    capturedOptions = options;
+                    return Promise.resolve({} as any);
+                },
+                copyMessage: (chatId: number | string, fromChatId: number | string, messageId: number, options?: any) => {
+                    capturedOptions = options;
+                    return Promise.resolve({} as any);
+                },
+            } as Api,
+            getCapturedOptions: () => capturedOptions,
+            getCapturedThreadId: () => capturedThreadId,
+            reset: () => {
+                capturedOptions = null;
+                capturedThreadId = null;
+            }
+        };
+    }
+
+    it("should include message_thread_id for topic messages", async () => {
+        // Topic message - should include message_thread_id
+        const topicMessage = {
+            message_id: 123,
+            text: "Hello topic",
+            from: user,
+            chat: forumChat,
+            sender_chat: forumChat,
+            date: 1234567890,
+            is_topic_message: true,
+            message_thread_id: 456,
+        } as Message;
+
+        const update = { message: topicMessage } as Update;
+        const mock = createMockApi();
+        const ctx = new Context(update, mock.api, { id: 42, first_name: "bot", is_bot: true, username: "bot" } as UserFromGetMe);
+
+        await ctx.reply("test");
+        
+        const options = mock.getCapturedOptions();
+        assertEquals(options?.message_thread_id, 456, "Should include message_thread_id for topic messages");
+    });
+
+    it("should NOT include message_thread_id for reply messages in forum", async () => {
+        // Reply message in forum - should NOT include message_thread_id 
+        const replyMessage = {
+            message_id: 124,
+            text: "Hello reply",  
+            from: user,
+            chat: forumChat,
+            sender_chat: forumChat,
+            date: 1234567890,
+            is_topic_message: false, // Key: this is a reply, not a topic
+            message_thread_id: 789,  // This is a reply thread ID, not topic thread ID
+        } as Message;
+
+        const update = { message: replyMessage } as Update;
+        const mock = createMockApi();
+        const ctx = new Context(update, mock.api, { id: 42, first_name: "bot", is_bot: true, username: "bot" } as UserFromGetMe);
+
+        await ctx.reply("test");
+        
+        const options = mock.getCapturedOptions();
+        assertEquals(options?.message_thread_id, undefined, "Should NOT include message_thread_id for reply messages");
+    });
+
+    it("should NOT include message_thread_id for regular messages without is_topic_message", async () => {
+        // Regular message without is_topic_message set
+        const regularMessage = {
+            message_id: 125,
+            text: "Hello regular",  
+            from: user,
+            chat: forumChat,
+            sender_chat: forumChat,
+            date: 1234567890,
+            // is_topic_message is undefined/falsy
+            message_thread_id: 999,
+        } as Message;
+
+        const update = { message: regularMessage } as Update;
+        const mock = createMockApi();
+        const ctx = new Context(update, mock.api, { id: 42, first_name: "bot", is_bot: true, username: "bot" } as UserFromGetMe);
+
+        await ctx.reply("test");
+        
+        const options = mock.getCapturedOptions();
+        assertEquals(options?.message_thread_id, undefined, "Should NOT include message_thread_id when is_topic_message is falsy");
+    });
+
+    it("should throw error when using forum methods on reply messages", () => {
+        // Reply message in forum
+        const replyMessage = {
+            message_id: 124,
+            text: "Hello reply",
+            from: user,
+            chat: forumChat,
+            sender_chat: forumChat,
+            date: 1234567890,
+            is_topic_message: false, // This is a reply, not a topic
+            message_thread_id: 789,
+        } as Message;
+
+        const update = { message: replyMessage } as Update;
+        const mock = createMockApi();
+        const ctx = new Context(update, mock.api, { id: 42, first_name: "bot", is_bot: true, username: "bot" } as UserFromGetMe);
+
+        // These should throw errors since they can only be used with topic messages
+        assertThrows(() => ctx.editForumTopic(), Error, "editForumTopic can only be used with topic messages");
+        assertThrows(() => ctx.closeForumTopic(), Error, "closeForumTopic can only be used with topic messages");
+        assertThrows(() => ctx.reopenForumTopic(), Error, "reopenForumTopic can only be used with topic messages");  
+        assertThrows(() => ctx.deleteForumTopic(), Error, "deleteForumTopic can only be used with topic messages");
+        assertThrows(() => ctx.unpinAllForumTopicMessages(), Error, "unpinAllForumTopicMessages can only be used with topic messages");
+    });
+
+    it("should work normally with forum methods on topic messages", async () => {
+        // Topic message - should work fine
+        const topicMessage = {
+            message_id: 123,
+            text: "Hello topic",
+            from: user,
+            chat: forumChat,
+            sender_chat: forumChat,
+            date: 1234567890,
+            is_topic_message: true, // This IS a topic message
+            message_thread_id: 456,
+        } as Message;
+
+        const update = { message: topicMessage } as Update;
+        const mock = createMockApi();
+        const ctx = new Context(update, mock.api, { id: 42, first_name: "bot", is_bot: true, username: "bot" } as UserFromGetMe);
+
+        await ctx.editForumTopic();
+        
+        const threadId = mock.getCapturedThreadId();
+        assertEquals(threadId, 456, "Should use correct message_thread_id for topic operations");
+    });
+});
