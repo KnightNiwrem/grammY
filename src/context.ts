@@ -2582,6 +2582,9 @@ export class Context implements RenamedUpdate {
         signal?: AbortSignal,
     ) {
         const message = orThrow(this.msg, "editForumTopic");
+        if (!message.is_topic_message) {
+            throw new Error("editForumTopic can only be used with topic messages");
+        }
         const thread = orThrow(message.message_thread_id, "editForumTopic");
         return this.api.editForumTopic(message.chat.id, thread, other, signal);
     }
@@ -2595,6 +2598,9 @@ export class Context implements RenamedUpdate {
      */
     closeForumTopic(signal?: AbortSignal) {
         const message = orThrow(this.msg, "closeForumTopic");
+        if (!message.is_topic_message) {
+            throw new Error("closeForumTopic can only be used with topic messages");
+        }
         const thread = orThrow(message.message_thread_id, "closeForumTopic");
         return this.api.closeForumTopic(message.chat.id, thread, signal);
     }
@@ -2608,6 +2614,9 @@ export class Context implements RenamedUpdate {
      */
     reopenForumTopic(signal?: AbortSignal) {
         const message = orThrow(this.msg, "reopenForumTopic");
+        if (!message.is_topic_message) {
+            throw new Error("reopenForumTopic can only be used with topic messages");
+        }
         const thread = orThrow(message.message_thread_id, "reopenForumTopic");
         return this.api.reopenForumTopic(message.chat.id, thread, signal);
     }
@@ -2621,6 +2630,9 @@ export class Context implements RenamedUpdate {
      */
     deleteForumTopic(signal?: AbortSignal) {
         const message = orThrow(this.msg, "deleteForumTopic");
+        if (!message.is_topic_message) {
+            throw new Error("deleteForumTopic can only be used with topic messages");
+        }
         const thread = orThrow(message.message_thread_id, "deleteForumTopic");
         return this.api.deleteForumTopic(message.chat.id, thread, signal);
     }
@@ -2634,6 +2646,9 @@ export class Context implements RenamedUpdate {
      */
     unpinAllForumTopicMessages(signal?: AbortSignal) {
         const message = orThrow(this.msg, "unpinAllForumTopicMessages");
+        if (!message.is_topic_message) {
+            throw new Error("unpinAllForumTopicMessages can only be used with topic messages");
+        }
         const thread = orThrow(
             message.message_thread_id,
             "unpinAllForumTopicMessages",
