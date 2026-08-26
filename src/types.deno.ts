@@ -47,8 +47,6 @@ import {
 } from "https://cdn.jsdelivr.net/gh/grammyjs/types@5.0.0/mod.ts";
 import { debug as d, isDeno } from "./platform.deno.ts";
 
-const debug = d("grammy:warn");
-
 // === Export all API types
 export * from "https://cdn.jsdelivr.net/gh/grammyjs/types@5.0.0/mod.ts";
 
@@ -72,6 +70,7 @@ interface URLLike {
  * Reference](https://core.telegram.org/bots/api#inputfile).
  */
 export class InputFile {
+    private static readonly debug = d("grammy:warn");
     private consumed = false;
     private readonly fileData: ConstructorParameters<typeof InputFile>[0];
     /**
@@ -110,7 +109,7 @@ export class InputFile {
             typeof file === "string" &&
             (file.startsWith("http:") || file.startsWith("https:"))
         ) {
-            debug(
+            InputFile.debug(
                 `InputFile received the local file path '${file}' that looks like a URL. Is this a mistake?`,
             );
         }

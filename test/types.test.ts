@@ -35,6 +35,32 @@ Deno.test({
 });
 
 Deno.test({
+    name: "invalid usage warning",
+    fn() {
+        const debug = stub(
+            InputFile as unknown as {
+                debug: (message: string) => void;
+            },
+            "debug",
+        );
+        try {
+            new InputFile("http://grammy.dev");
+            new InputFile("https://grammy.dev");
+        } finally {
+            debug.restore();
+        }
+        assertEquals(debug.calls.map((call) => call.args), [
+            [
+                "InputFile received the local file path 'http://grammy.dev' that looks like a URL. Is this a mistake?",
+            ],
+            [
+                "InputFile received the local file path 'https://grammy.dev' that looks like a URL. Is this a mistake?",
+            ],
+        ]);
+    },
+});
+
+Deno.test({
     name: "throw upon using a consumed InputFile",
     fn() {
         const file = new InputFile((function* (): Iterable<Uint8Array> {})());

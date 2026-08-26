@@ -46,8 +46,6 @@ import fetch from "node-fetch";
 import { basename } from "path";
 import { debug as d } from "./platform.node";
 
-const debug = d("grammy:warn");
-
 // === Export all API types
 export * from "@grammyjs/types";
 
@@ -71,6 +69,7 @@ interface URLLike {
  * Reference](https://core.telegram.org/bots/api#inputfile).
  */
 export class InputFile {
+    private static readonly debug = d("grammy:warn");
     private consumed = false;
     private readonly fileData: ConstructorParameters<typeof InputFile>[0];
     /**
@@ -106,7 +105,7 @@ export class InputFile {
             typeof file === "string" &&
             (file.startsWith("http:") || file.startsWith("https:"))
         ) {
-            debug(
+            InputFile.debug(
                 `InputFile received the local file path '${file}' that looks like a URL. Is this a mistake?`,
             );
         }
