@@ -1,7 +1,4 @@
-// deno-lint-ignore-file no-import-prefix
-
-import d from "https://cdn.skypack.dev/debug@4.4.3";
-export { d as debug };
+export { createDebug as debug } from "jsr:@grammyjs/debug@0.3.1";
 
 // === Export system-specific operations
 // Turn an AsyncIterable<Uint8Array> into a stream

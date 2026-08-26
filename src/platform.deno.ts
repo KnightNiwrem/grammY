@@ -1,21 +1,8 @@
-// deno-lint-ignore-file no-import-prefix
-
 /** Are we running on Deno or in a web browser? */
 export const isDeno = typeof Deno !== "undefined";
 
 // === Export debug
-import debug from "https://cdn.skypack.dev/debug@4.4.3";
-export { debug };
-const DEBUG = "DEBUG";
-if (isDeno) {
-    debug.useColors = () => !Deno.noColor;
-    const env = { name: "env", variable: DEBUG } as const;
-    const res = await Deno.permissions.query(env);
-    let namespace: string | undefined = undefined;
-    if (res.state === "granted") namespace = Deno.env.get(DEBUG);
-    if (namespace) debug.enable(namespace);
-    else debug.disable();
-}
+export { createDebug as debug } from "jsr:@grammyjs/debug@0.3.1";
 
 // === Export system-specific operations
 // Turn an AsyncIterable<Uint8Array> into a stream

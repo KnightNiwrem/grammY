@@ -1,4 +1,3 @@
-import { debug as d } from "../src/platform.deno.ts";
 import { InputFile } from "../src/types.ts";
 import {
     assertEquals,
@@ -39,11 +38,9 @@ Deno.test({
 Deno.test({
     name: "invalid usage warning",
     fn() {
-        const debug = stub(d as Console, "log");
-        d.enable("*");
+        const debug = stub(console, "debug");
         new InputFile("http://grammy.dev");
         new InputFile("https://grammy.dev");
-        d.disable("*");
         debug.restore();
         assertEquals(debug.calls.length, 2);
         assertStringIncludes(debug.calls[0].args[0], "local file path");
