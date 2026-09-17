@@ -242,3 +242,87 @@ Deno.test({
         );
     },
 });
+
+Deno.test({
+    name: "abort the download upon HTTP error status",
+    async fn() {
+        const signals: (AbortSignal | undefined)[] = [];
+        const source = stub(
+            globalThis,
+            "fetch",
+            (_url, init) => {
+                signals.push(init?.signal ?? undefined);
+                return Promise.resolve(
+                    new Response("error page", { status: 503 }),
+                );
+            },
+        );
+        try {
+            const file = new InputFile({ url: "https://grammy.dev" });
+            await assertRejects(
+                () => file.toRaw(),
+                Error,
+                "HTTP error status 503",
+            );
+            assertEquals(signals.length, 1);
+            assertEquals(signals[0]?.aborted, true);
+        } finally {
+            source.restore();
+        }
+    },
+});
+
+Deno.test({
+    name: "do not abort the download upon success",
+    async fn() {
+        const bytes = new Uint8Array([65, 66, 67]);
+        const signals: (AbortSignal | undefined)[] = [];
+        const source = stub(
+            globalThis,
+            "fetch",
+            (_url, init) => {
+                signals.push(init?.signal ?? undefined);
+                return Promise.resolve(new Response(bytes));
+            },
+        );
+        try {
+            const file = new InputFile({ url: "https://grammy.dev" });
+            const data = await file.toRaw();
+            if (data instanceof Uint8Array) throw new Error("no itr");
+            assertEquals(await convertToUint8Array(data), bytes);
+            assertEquals(signals.length, 1);
+            assertEquals(signals[0]?.aborted, false);
+        } finally {
+            source.restore();
+        }
+    },
+});
+
+Deno.test({
+    name: "reject Response with HTTP error status and locked body",
+    async fn() {
+        const response = new Response("error page", { status: 404 });
+        const reader = response.body!.getReader(); // cancel() now rejects
+        const file = new InputFile(response);
+        await assertRejects(() => file.toRaw(), Error, "HTTP error status 404");
+        reader.releaseLock();
+    },
+});
+
+Deno.test({
+    name: "reject Response with HTTP error status and hanging cancel",
+    async fn() {
+        const stream = new ReadableStream<Uint8Array>({
+            cancel: () => new Promise<void>(() => {}), // never settles
+        });
+        const file = new InputFile(new Response(stream, { status: 500 }));
+        const timeout = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("toRaw() hung")), 1000)
+        );
+        await assertRejects(
+            () => Promise.race([file.toRaw(), timeout]),
+            Error,
+            "HTTP error status 500",
+        );
+    },
+});

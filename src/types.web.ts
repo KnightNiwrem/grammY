@@ -134,9 +134,12 @@ export class InputFile {
 }
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
-    const { status, body } = await fetch(url);
+    const controller = new AbortController();
+    const { status, body } = await fetch(url, { signal: controller.signal });
     if (status >= 400 && status < 600) {
-        await body?.cancel();
+        // Abort instead of draining so that a large error body is never
+        // downloaded, and the connection is released immediately.
+        controller.abort();
         throw new Error(
             `Download failed, received HTTP error status ${status} from '${url}'`,
         );
