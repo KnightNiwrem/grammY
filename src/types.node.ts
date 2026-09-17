@@ -43,7 +43,7 @@ import {
 } from "@grammyjs/types";
 import { createReadStream, type ReadStream } from "fs";
 import { AbortController } from "abort-controller";
-import fetch, { type RequestInit } from "node-fetch";
+import fetch from "node-fetch";
 import { basename } from "path";
 import { debug as d } from "./platform.node";
 
@@ -163,10 +163,7 @@ export class InputFile {
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
     const controller = new AbortController();
-    // node-fetch declares its own `AbortSignal` type which is structurally
-    // incompatible with the global one, but any `AbortSignal` works at runtime.
-    const signal = controller.signal as unknown as RequestInit["signal"];
-    const { status, body } = await fetch(url, { signal });
+    const { status, body } = await fetch(url, { signal: controller.signal });
     if (status >= 400 && status < 600) {
         // Abort instead of draining so that a large error body is never
         // downloaded, and the connection is released immediately. node-fetch
