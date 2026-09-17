@@ -170,9 +170,9 @@ async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
     if (status >= 400 && status < 600) {
         // Abort instead of draining so that a large error body is never
         // downloaded, and the connection is released immediately. node-fetch
-        // emits an error event on the body when aborting, so attach a no-op
-        // listener first to guarantee it never surfaces as an uncaught error.
-        body.on("error", () => {});
+        // emits an error event on the body when aborting, but it also attaches
+        // its own error listener to every stream body, so it never surfaces
+        // as an uncaught error.
         controller.abort();
         throw new Error(
             `Download failed, received HTTP error status ${status} from '${url}'`,

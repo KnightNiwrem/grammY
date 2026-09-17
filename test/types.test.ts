@@ -316,13 +316,18 @@ Deno.test({
             cancel: () => new Promise<void>(() => {}), // never settles
         });
         const file = new InputFile(new Response(stream, { status: 500 }));
-        const timeout = new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("toRaw() hung")), 1000)
-        );
-        await assertRejects(
-            () => Promise.race([file.toRaw(), timeout]),
-            Error,
-            "HTTP error status 500",
-        );
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const timeout = new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("toRaw() hung")), 1000);
+        });
+        try {
+            await assertRejects(
+                () => Promise.race([file.toRaw(), timeout]),
+                Error,
+                "HTTP error status 500",
+            );
+        } finally {
+            clearTimeout(timer);
+        }
     },
 });
