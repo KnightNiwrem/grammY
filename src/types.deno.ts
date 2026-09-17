@@ -155,10 +155,7 @@ export class InputFile {
         // Handle Response objects
         if (data instanceof Response) {
             if (isErrorStatus(data.status)) {
-                // Release the body on a best-effort basis. Cancelling a locked
-                // or custom stream may reject or never settle, so we neither
-                // await it nor let it replace the status error.
-                data.body?.cancel().catch(() => {});
+                data.body?.cancel().catch(() => {}); // best-effort, do not await
                 throw new Error(
                     `Cannot upload response with HTTP error status ${data.status}!`,
                 );
@@ -190,8 +187,6 @@ async function fetchFile(
     const controller = new AbortController();
     const { status, body } = await fetch(url, { signal: controller.signal });
     if (isErrorStatus(status)) {
-        // Abort instead of draining so that a large error body is never
-        // downloaded, and the connection is released immediately.
         controller.abort();
         throw new Error(
             `Download failed, received HTTP error status ${status} from '${url}'`,
