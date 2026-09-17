@@ -154,6 +154,12 @@ export class InputFile {
         if (isDenoFile(data)) return data.readable[Symbol.asyncIterator]();
         // Handle Response objects
         if (data instanceof Response) {
+            if (isErrorStatus(data.status)) {
+                await data.body?.cancel();
+                throw new Error(
+                    `Cannot upload response with HTTP error status ${data.status}!`,
+                );
+            }
             if (data.body === null) throw new Error(`No response body!`);
             return data.body;
         }
@@ -178,11 +184,20 @@ export class InputFile {
 async function fetchFile(
     url: string | URL,
 ): Promise<AsyncIterable<Uint8Array>> {
-    const { body } = await fetch(url);
+    const { status, body } = await fetch(url);
+    if (isErrorStatus(status)) {
+        await body?.cancel();
+        throw new Error(
+            `Download failed, received HTTP error status ${status} from '${url}'`,
+        );
+    }
     if (body === null) {
         throw new Error(`Download failed, no response body from '${url}'`);
     }
     return body[Symbol.asyncIterator]();
+}
+function isErrorStatus(status: number): boolean {
+    return status >= 400 && status < 600;
 }
 function isDenoFile(data: unknown): data is Deno.FsFile {
     return isDeno && data instanceof Deno.FsFile;

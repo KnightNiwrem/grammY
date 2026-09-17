@@ -134,7 +134,13 @@ export class InputFile {
 }
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
-    const { body } = await fetch(url);
+    const { status, body } = await fetch(url);
+    if (status >= 400 && status < 600) {
+        await body?.cancel();
+        throw new Error(
+            `Download failed, received HTTP error status ${status} from '${url}'`,
+        );
+    }
     if (body === null) {
         throw new Error(`Download failed, no response body from '${url}'`);
     }

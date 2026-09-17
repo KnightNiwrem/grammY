@@ -171,3 +171,74 @@ Deno.test({
         source.restore();
     },
 });
+
+Deno.test({
+    name: "reject URLs with HTTP error status",
+    async fn() {
+        for (const status of [400, 403, 404, 429, 500, 503, 599]) {
+            const source = stub(
+                globalThis,
+                "fetch",
+                () => Promise.resolve(new Response("error page", { status })),
+            );
+            try {
+                const file0 = new InputFile({ url: "https://grammy.dev" });
+                const file1 = new InputFile(new URL("https://grammy.dev"));
+                await assertRejects(
+                    () => file0.toRaw(),
+                    Error,
+                    `HTTP error status ${status} from 'https://grammy.dev`,
+                );
+                await assertRejects(
+                    () => file1.toRaw(),
+                    Error,
+                    `HTTP error status ${status} from 'https://grammy.dev`,
+                );
+            } finally {
+                source.restore();
+            }
+        }
+    },
+});
+
+Deno.test({
+    name: "accept URLs with non-error HTTP status",
+    async fn() {
+        const bytes = new Uint8Array([65, 66, 67]);
+        for (const status of [200, 201, 206, 399]) {
+            const source = stub(
+                globalThis,
+                "fetch",
+                () => Promise.resolve(new Response(bytes, { status })),
+            );
+            try {
+                const file = new InputFile({ url: "https://grammy.dev" });
+                const data = await file.toRaw();
+                if (data instanceof Uint8Array) throw new Error("no itr");
+                assertEquals(await convertToUint8Array(data), bytes);
+            } finally {
+                source.restore();
+            }
+        }
+    },
+});
+
+Deno.test({
+    name: "reject Response with HTTP error status",
+    async fn() {
+        for (const status of [400, 404, 500, 599]) {
+            const file = new InputFile(new Response("error page", { status }));
+            await assertRejects(
+                () => file.toRaw(),
+                Error,
+                `HTTP error status ${status}`,
+            );
+        }
+        const empty = new InputFile(new Response(null, { status: 404 }));
+        await assertRejects(
+            () => empty.toRaw(),
+            Error,
+            "HTTP error status 404",
+        );
+    },
+});

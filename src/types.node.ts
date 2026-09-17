@@ -161,7 +161,13 @@ export class InputFile {
 }
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
-    const { body } = await fetch(url);
+    const { status, body } = await fetch(url);
+    if (status >= 400 && status < 600) {
+        body.resume(); // discard the error body to release the connection
+        throw new Error(
+            `Download failed, received HTTP error status ${status} from '${url}'`,
+        );
+    }
     for await (const chunk of body) {
         if (typeof chunk === "string") {
             throw new Error(
