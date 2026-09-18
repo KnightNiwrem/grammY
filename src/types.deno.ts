@@ -155,7 +155,6 @@ export class InputFile {
         // Handle Response objects
         if (data instanceof Response) {
             if (!data.ok) {
-                data.body?.cancel().catch(() => {}); // best-effort, do not await
                 throw new Error(
                     `Cannot upload response with HTTP status ${data.status}!`,
                 );
