@@ -154,6 +154,11 @@ export class InputFile {
         if (isDenoFile(data)) return data.readable[Symbol.asyncIterator]();
         // Handle Response objects
         if (data instanceof Response) {
+            if (!data.ok) {
+                throw new Error(
+                    `Cannot upload response with HTTP status ${data.status}!`,
+                );
+            }
             if (data.body === null) throw new Error(`No response body!`);
             return data.body;
         }
@@ -178,7 +183,16 @@ export class InputFile {
 async function fetchFile(
     url: string | URL,
 ): Promise<AsyncIterable<Uint8Array>> {
-    const { body } = await fetch(url);
+    const controller = new AbortController();
+    const { ok, status, body } = await fetch(url, {
+        signal: controller.signal,
+    });
+    if (!ok) {
+        controller.abort();
+        throw new Error(
+            `Download failed, received HTTP status ${status} from '${url}'`,
+        );
+    }
     if (body === null) {
         throw new Error(`Download failed, no response body from '${url}'`);
     }

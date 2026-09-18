@@ -134,7 +134,16 @@ export class InputFile {
 }
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
-    const { body } = await fetch(url);
+    const controller = new AbortController();
+    const { ok, status, body } = await fetch(url, {
+        signal: controller.signal,
+    });
+    if (!ok) {
+        controller.abort();
+        throw new Error(
+            `Download failed, received HTTP status ${status} from '${url}'`,
+        );
+    }
     if (body === null) {
         throw new Error(`Download failed, no response body from '${url}'`);
     }

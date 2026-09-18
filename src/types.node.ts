@@ -42,6 +42,7 @@ import {
     type Opts as OptsF,
 } from "@grammyjs/types";
 import { createReadStream, type ReadStream } from "fs";
+import { AbortController } from "abort-controller";
 import fetch from "node-fetch";
 import { basename } from "path";
 import { debug as d } from "./platform.node";
@@ -161,7 +162,16 @@ export class InputFile {
 }
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
-    const { body } = await fetch(url);
+    const controller = new AbortController();
+    const { ok, status, body } = await fetch(url, {
+        signal: controller.signal,
+    });
+    if (!ok) {
+        controller.abort();
+        throw new Error(
+            `Download failed, received HTTP status ${status} from '${url}'`,
+        );
+    }
     for await (const chunk of body) {
         if (typeof chunk === "string") {
             throw new Error(
