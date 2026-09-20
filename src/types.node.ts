@@ -42,7 +42,7 @@ import {
     type Opts as OptsF,
 } from "@grammyjs/types";
 import { createReadStream, type ReadStream } from "fs";
-import fetch from "node-fetch";
+import fetch, { Response } from "node-fetch";
 import { basename } from "path";
 import { debug as d } from "./platform.node";
 
@@ -90,6 +90,7 @@ export class InputFile {
     constructor(
         file: MaybeSupplier<
             | string
+            | Response
             | URL
             | URLLike
             | Uint8Array
@@ -138,11 +139,17 @@ export class InputFile {
         const data = this.fileData;
         // Handle local files
         if (typeof data === "string") return createReadStream(data);
-        // Handle URLs and URLLike objects
+        // Handle URL objects
         if (data instanceof URL) {
             return data.protocol === "file" // node-fetch does not support file URLs
                 ? createReadStream(data.pathname)
                 : fetchFile(data);
+        }
+        // Handle Response objects before URLLike objects because Response has a
+        // url property, too.
+        if (data instanceof Response) {
+            if (data.body === null) throw new Error(`No response body!`);
+            return readBody(data.body, data.url);
         }
         if ("url" in data) return fetchFile(data.url);
         // Return buffers as-is
@@ -162,6 +169,17 @@ export class InputFile {
 
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
     const { body } = await fetch(url);
+    yield* readBody(body, url);
+}
+
+async function* readBody(
+    body: NodeJS.ReadableStream,
+    url: string | URL,
+): AsyncIterable<Uint8Array> {
+    if (body instanceof Uint8Array) {
+        yield body;
+        return;
+    }
     for await (const chunk of body) {
         if (typeof chunk === "string") {
             throw new Error(

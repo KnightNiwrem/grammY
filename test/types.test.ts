@@ -1,10 +1,12 @@
 import { debug as d } from "../src/platform.deno.ts";
 import { InputFile } from "../src/types.ts";
+import { InputFile as WebInputFile } from "../src/types.web.ts";
 import {
     assertEquals,
     assertInstanceOf,
     assertRejects,
     assertStringIncludes,
+    assertThrows,
     convertToUint8Array,
     stub,
 } from "./deps.test.ts";
@@ -139,6 +141,33 @@ Deno.test({
         if (data0 instanceof Uint8Array) throw new Error("no itr");
         const values0 = await convertToUint8Array(data0);
         assertEquals(values0, bytes);
+    },
+});
+
+Deno.test({
+    name: "convert Response to raw in web build",
+    async fn() {
+        const bytes = new Uint8Array([65, 66, 67]);
+        const source = stub(
+            globalThis,
+            "fetch",
+            () => Promise.resolve(new Response(new Uint8Array([88]))),
+        );
+        try {
+            const file = new WebInputFile(new Response(bytes));
+            const data = file.toRaw();
+            if (data instanceof Uint8Array) throw new Error("no itr");
+            const values = await convertToUint8Array(data);
+            assertEquals(values, bytes);
+            assertEquals(source.calls.length, 0);
+            assertThrows(
+                () => new WebInputFile(new Response(null)).toRaw(),
+                Error,
+                "No response body",
+            );
+        } finally {
+            source.restore();
+        }
     },
 });
 
