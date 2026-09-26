@@ -160,6 +160,7 @@ export class InputFile {
                 );
             }
             if (data.body === null) throw new Error(`No response body!`);
+            this.consumed = true;
             return data.body;
         }
         // Handle URL and URLLike objects
