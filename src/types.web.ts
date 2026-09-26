@@ -130,14 +130,14 @@ export class InputFile {
         const data = this.fileData;
         // Handle local files
         if (data instanceof Blob) return data.stream();
-        // Handle Response and ResponseLike objects
-        if ("body" in data && "ok" in data) {
+        // Upload the body of Response and ResponseLike objects directly if we
+        // can read it, otherwise fall back to fetching their URL below
+        if ("body" in data && "ok" in data && isByteSource(data.body)) {
             if (!data.ok) {
                 throw new Error(
                     `Cannot upload response with HTTP status ${data.status}!`,
                 );
             }
-            if (data.body === null) throw new Error(`No response body!`);
             this.consumed = true;
             return data.body;
         }
@@ -154,6 +154,14 @@ export class InputFile {
     }
 }
 
+/** Checks if a response body can be uploaded as-is */
+function isByteSource(
+    body: unknown,
+): body is Uint8Array | AsyncIterable<Uint8Array> {
+    return body instanceof Uint8Array ||
+        (typeof body === "object" && body !== null &&
+            Symbol.asyncIterator in body);
+}
 async function* fetchFile(url: string | URL): AsyncIterable<Uint8Array> {
     const controller = new AbortController();
     const { ok, status, body } = await fetch(url, {
