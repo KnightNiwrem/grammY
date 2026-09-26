@@ -57,6 +57,15 @@ interface URLLike {
      */
     url: string;
 }
+/** Something that looks like a `Response` object of the Fetch API. */
+interface ResponseLike extends URLLike {
+    /** Whether the response was successful */
+    ok: boolean;
+    /** HTTP status code of the response */
+    status: number;
+    /** Stream of the response body, or `null` if there is none */
+    body: AsyncIterable<Uint8Array> | null;
+}
 
 // === InputFile handling and File augmenting
 /**
@@ -87,6 +96,7 @@ export class InputFile {
         file:
             | Blob
             | URL
+            | ResponseLike
             | URLLike
             | Uint8Array
             | ReadableStream<Uint8Array>
@@ -120,6 +130,17 @@ export class InputFile {
         const data = this.fileData;
         // Handle local files
         if (data instanceof Blob) return data.stream();
+        // Handle Response and ResponseLike objects
+        if ("body" in data && "ok" in data) {
+            if (!data.ok) {
+                throw new Error(
+                    `Cannot upload response with HTTP status ${data.status}!`,
+                );
+            }
+            if (data.body === null) throw new Error(`No response body!`);
+            this.consumed = true;
+            return data.body;
+        }
         // Handle URL and URLLike objects
         if (data instanceof URL) return fetchFile(data);
         if ("url" in data) return fetchFile(data.url);

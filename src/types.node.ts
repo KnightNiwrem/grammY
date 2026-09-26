@@ -62,6 +62,15 @@ interface URLLike {
      */
     url: string;
 }
+/** Something that looks like a `Response` object of the Fetch API. */
+interface ResponseLike extends URLLike {
+    /** Whether the response was successful */
+    ok: boolean;
+    /** HTTP status code of the response */
+    status: number;
+    /** Stream of the response body, or `null` if there is none */
+    body: AsyncIterable<Uint8Array> | null;
+}
 
 // === InputFile handling and File augmenting
 /**
@@ -92,6 +101,7 @@ export class InputFile {
         file: MaybeSupplier<
             | string
             | URL
+            | ResponseLike
             | URLLike
             | Uint8Array
             | ReadStream
@@ -144,6 +154,17 @@ export class InputFile {
             return data.protocol === "file" // node-fetch does not support file URLs
                 ? createReadStream(data.pathname)
                 : fetchFile(data);
+        }
+        // Handle Response and ResponseLike objects
+        if ("body" in data && "ok" in data) {
+            if (!data.ok) {
+                throw new Error(
+                    `Cannot upload response with HTTP status ${data.status}!`,
+                );
+            }
+            if (data.body === null) throw new Error(`No response body!`);
+            this.consumed = true;
+            return data.body;
         }
         if ("url" in data) return fetchFile(data.url);
         // Return buffers as-is
